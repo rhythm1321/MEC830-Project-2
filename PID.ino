@@ -1,4 +1,5 @@
 #include <Encoder.h>
+#include <PID_v1.h>
 
 // Encoder Pins
 const int encoderA = 2;
@@ -10,8 +11,9 @@ const int dir = 5;
 const int enable = 6;
 
 // Estop 
-
 const int Estop = 8;
+
+bool system_running = true;
 
 void setup() {
 Serial.begin(9600);
@@ -30,6 +32,15 @@ pinMode(Estop, INPUT_PULLUP);
 }
 
 void loop() {
-  // put your main code here, to run repeatedly:
+
+int Estop_status = digitalRead(Estop);
+
+if (Estop_status == LOW)) {
+  system_running = false;
+  disableMotor();
+  Serial.println("Estop is activated the system is off");
+  delay(500);
+  return;
+}
 
 }
