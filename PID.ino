@@ -1,4 +1,5 @@
 #include <Encoder.h>
+#include <AccelStepper.h>
 #include <PID_v1.h>
 
 // Encoder Pins
@@ -10,8 +11,8 @@ const int step = 4;
 const int dir = 5; 
 const int enable = 6;
 
-// Estop 
-const int Estop = 8;
+// Estop
+const int Estop = 8; // Emergency Stop
 
 // Motor driver pins for microstepping
 const int M0_PIN = 9;     
@@ -83,12 +84,16 @@ digitalWrite(M1_PIN, config.M1);
 digitalWrite(M2_PIN, config.M2);
 steps_per_mm = config.steps_per_mm;
 
-// Initialize Emergency Stop
+// Initialize Switches
+pinMode(toggle, INPUT_PULLUP); 
 pinMode(Estop, INPUT_PULLUP);
 
 // Configure Stepper Motor
 stepper.setMaxSpeed(5000000);
 stepper.setMinPulseWidth(5);
+
+sysPID.SetMode(AUTOMATIC);
+sysPID.SetOutputLimits(-MAX_STEPS, MAX_STEPS); // limiting the PID output to the set motor step range
 
 }
 
@@ -109,6 +114,43 @@ if (Estop_status == HIGH){
   Serial.println("System has been reset. Resuming movement now...")
 }
 
-
-
+updateEncoderAngle();
+if (abs(P_ange) > Ang_limit) {
+  system_running = false; 
+  disableMotor();
+  Serial.println("System is off due to Angle exceeding limit")
+  return;
 }
+
+// PID Computing
+sysPID.Compute();
+driveMotor(PosOut); // Drive the motor based onn the PID output
+
+Serial.print("Angle: ");
+Serial.print(P_angle);
+Serial.print(" | PID Output: ");
+Serial.println(PosOut);
+
+delay(20);
+}
+
+void updateEncoderAngle() {
+  long count = Enc.read();
+  P_angle = count * (360.00 / 2000.00); // Convert encoder counts to degrees
+}
+
+void driveMotor(double pidOutput) {
+  if (abs(P_angle) < ANGLE_LIMIT) {
+    stepper.setSpeed(pidOutput);
+    stepper.runSpeed();
+  } else {
+    disableMotor();
+  }
+}
+
+void disableMotor() {
+  digitalWrite(enablePin, HIGH); 
+  stepper.stop(); 
+}
+
+
